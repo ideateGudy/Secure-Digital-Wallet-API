@@ -13,3 +13,60 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+
+enum TransactionType {
+  CREDIT
+  DEBIT
+}
+
+enum Currency {
+  USD
+  EUR
+  GBP
+  NGN
+}
+
+// User model - a user has multiple wallets
+model User {
+  id        String   @id @default(uuid()) // Unique User ID
+  email     String   @unique              // Email of the User
+  password  String   // User's password (hashed)
+  wallets   Wallet[] // A user can have multiple wallets
+  createdAt DateTime @default(now())      // Created At timestamp
+  updatedAt DateTime @updatedAt          // Updated At timestamp
+
+  @@map("users")
+}
+
+// Wallet model - each user can have multiple wallets
+model Wallet {
+  id          String       @id @default(uuid())      // Unique Wallet ID
+  balance     Decimal  @db.Decimal(13, 2) @default(0.00)        // Wallet Balance (Accurate to 4 decimal places)
+  currency    Currency     // Currency Type for the wallet (USD, EUR, etc.)
+  userId      String       // Foreign Key to User
+  user        User         @relation(fields: [userId], references: [id]) // Relation with User model
+  transactions Transaction[] // Wallet can have multiple transactions
+  senderTransactions Transaction[] @relation("Sender") // Transactions where the wallet is the sender
+  recipientTransactions Transaction[] @relation("Recipient") // Transactions where the wallet is the recipient
+  createdAt   DateTime     @default(now())          // Wallet Creation Timestamp
+
+  @@map("wallets")
+}
+
+// Transaction model - tracking credits and debits in a wallet
+model Transaction {
+  id          String           @id @default(uuid())     // Unique Transaction ID
+  amount      Decimal @db.Decimal(13, 2)    // Transaction Amount (Accurate to 4 decimal places)
+  type        TransactionType  // Type of Transaction (CREDIT or DEBIT)
+  currency    Currency         // Currency used in the transaction
+  senderId    String?          // Optional - Sender's Wallet ID (for transfers)
+  recipientId String?          // Optional - Recipient's Wallet ID (for transfers)
+  walletId    String           // The wallet involved in the transaction
+  wallet      Wallet           @relation(fields: [walletId], references: [id]) // The related wallet
+  sender      Wallet?          @relation("Sender", fields: [senderId], references: [id]) // Sender wallet (optional)
+  recipient   Wallet?          @relation("Recipient", fields: [recipientId], references: [id]) // Recipient wallet (optional)
+  createdAt   DateTime         @default(now())         // Transaction Timestamp
+
+  @@map("transactions")
+}
